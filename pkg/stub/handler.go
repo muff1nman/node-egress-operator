@@ -3,8 +3,6 @@ package stub
 import (
 	"context"
 
-	"github.com/muff1nman/node-egress-operator/pkg/apis/org/v1"
-
 	"github.com/operator-framework/operator-sdk/pkg/sdk"
 	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
@@ -23,7 +21,8 @@ type Handler struct {
 
 func (h *Handler) Handle(ctx context.Context, event sdk.Event) error {
 	switch o := event.Object.(type) {
-	case *v1.FunNode:
+	case *v1.Node:
+		// TODO this
 		err := sdk.Create(newbusyBoxPod(o))
 		if err != nil && !errors.IsAlreadyExists(err) {
 			logrus.Errorf("Failed to create busybox pod : %v", err)
