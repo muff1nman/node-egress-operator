@@ -8,7 +8,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
 func NewHandler() sdk.Handler {
@@ -21,7 +20,7 @@ type Handler struct {
 
 func (h *Handler) Handle(ctx context.Context, event sdk.Event) error {
 	switch o := event.Object.(type) {
-	case *v1.Node:
+	case *corev1.Node:
 		// TODO this
 		err := sdk.Create(newbusyBoxPod(o))
 		if err != nil && !errors.IsAlreadyExists(err) {
@@ -33,7 +32,7 @@ func (h *Handler) Handle(ctx context.Context, event sdk.Event) error {
 }
 
 // newbusyBoxPod demonstrates how to create a busybox pod
-func newbusyBoxPod(cr *v1.FunNode) *corev1.Pod {
+func newbusyBoxPod(cr *corev1.Node) *corev1.Pod {
 	labels := map[string]string{
 		"app": "busy-box",
 	}
@@ -45,13 +44,6 @@ func newbusyBoxPod(cr *v1.FunNode) *corev1.Pod {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "busy-box",
 			Namespace: cr.Namespace,
-			OwnerReferences: []metav1.OwnerReference{
-				*metav1.NewControllerRef(cr, schema.GroupVersionKind{
-					Group:   v1.SchemeGroupVersion.Group,
-					Version: v1.SchemeGroupVersion.Version,
-					Kind:    "FunNode",
-				}),
-			},
 			Labels: labels,
 		},
 		Spec: corev1.PodSpec{
