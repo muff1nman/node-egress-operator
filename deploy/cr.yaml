@@ -1,0 +1,4 @@
+apiVersion: "org.this.should.be.deleted/v1"
+kind: "FunNode"
+metadata:
+  name: "example"
