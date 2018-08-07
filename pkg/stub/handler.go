@@ -56,6 +56,13 @@ func (h *Handler) Handle(ctx context.Context, event sdk.Event) error {
 			logrus.Errorf("Failed to get current egress nodes : %v", err)
 			return err
 		}
+
+		for index, node := range curEgNodes {
+			logrus.WithFields(logrus.Fields{
+				"name":  node,
+				"index": index,
+			}).Info("Got current egress node")
+		}
 	}
 	return nil
 }
@@ -66,7 +73,6 @@ func getListOfEgress() []string {
 }
 
 func getCurrentOnlineNodes() ([]string, error) {
-	listOpts := metav1.ListOptions{}
 	nodeList := &corev1.NodeList{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Node",
@@ -98,7 +104,7 @@ type nodefilter func(corev1.Node) bool
 type netfilter func(ocpv1.HostSubnet) bool
 
 func HasEgress(net ocpv1.HostSubnet) bool {
-	return len(net.Spec.EgressIPs) > 0
+	return len(net.EgressIPs) > 0
 }
 
 func IsNodeOnline(node corev1.Node) bool {
