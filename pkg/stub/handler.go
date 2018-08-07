@@ -3,6 +3,7 @@ package stub
 import (
 	"context"
 
+	ocpv1 "github.com/openshift/api/network/v1"
 	"github.com/operator-framework/operator-sdk/pkg/sdk"
 	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
@@ -44,17 +45,17 @@ func (h *Handler) Handle(ctx context.Context, event sdk.Event) error {
 
 		for index, node := range curOnlineNodes {
 			logrus.WithFields(logrus.Fields{
-				"name":  node.Name,
+				"name":  node,
 				"index": index,
 			}).Info("Got onlines node")
 		}
 
-		//curEgNodes, err := getCurrentEgressNodes()
+		curEgNodes, err := getCurrentEgressNodes()
 
-		//if err != nil {
-		//  logrus.Errorf("Failed to get current egress nodes : %v", err)
-		//  return err
-		//}
+		if err != nil {
+			logrus.Errorf("Failed to get current egress nodes : %v", err)
+			return err
+		}
 	}
 	return nil
 }
@@ -64,25 +65,41 @@ func getListOfEgress() []string {
 	return strings.Split(rawenv, ",")
 }
 
-func getCurrentOnlineNodes() ([]corev1.Node, error) {
-	//listOpts := metav1.ListOptions{}
+func getCurrentOnlineNodes() ([]string, error) {
+	listOpts := metav1.ListOptions{}
 	nodeList := &corev1.NodeList{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Node",
 			APIVersion: "v1",
 		},
 	}
-	//if labelSelector != nil {
-	//  listOpts.LabelSelector = labelSelector.String()
-	//}
 	err := sdk.List("", nodeList)
 	if err != nil {
 		return nil, err
 	}
-	return FilterNodes(nodeList.Items, IsNodeOnline), nil
+	return FilterAndMapNodes(nodeList.Items, IsNodeOnline), nil
+}
+
+func getCurrentEgressNodes() ([]string, error) {
+	netList := &ocpv1.HostSubnetList{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "HostSubnet",
+			APIVersion: "v1",
+		},
+	}
+	err := sdk.List("", netList)
+	if err != nil {
+		return nil, err
+	}
+	return FilterAndMapNets(netList.Items, HasEgress), nil
 }
 
 type nodefilter func(corev1.Node) bool
+type netfilter func(ocpv1.HostSubnet) bool
+
+func HasEgress(net ocpv1.HostSubnet) bool {
+	return len(net.Spec.EgressIPs) > 0
+}
 
 func IsNodeOnline(node corev1.Node) bool {
 	for _, condition := range node.Status.Conditions {
@@ -93,11 +110,21 @@ func IsNodeOnline(node corev1.Node) bool {
 	return false
 }
 
-func FilterNodes(vs []corev1.Node, filter nodefilter) []corev1.Node {
-	vsf := make([]corev1.Node, 0)
+func FilterAndMapNodes(vs []corev1.Node, filter nodefilter) []string {
+	vsf := make([]string, 0)
 	for _, v := range vs {
 		if filter(v) {
-			vsf = append(vsf, v)
+			vsf = append(vsf, v.Name)
+		}
+	}
+	return vsf
+}
+
+func FilterAndMapNets(vs []ocpv1.HostSubnet, filter netfilter) []string {
+	vsf := make([]string, 0)
+	for _, v := range vs {
+		if filter(v) {
+			vsf = append(vsf, v.Name)
 		}
 	}
 	return vsf
