@@ -7,7 +7,7 @@ pipeline {
     stages {
         stage('Build go binary') {
             steps {
-                sh "tmp/build/build.sh"
+                sh "scl enable go-toolset-7 -- bash tmp/build/build.sh"
             }
         }
         stage('Apply OpenShift Build Objects') {
