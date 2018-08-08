@@ -7,7 +7,13 @@ pipeline {
     stages {
         stage('Build go binary') {
             steps {
-                sh "scl enable go-toolset-7 -- bash tmp/build/build.sh"
+                sh """
+                    #!/usr/bin/env bash \n
+                    unset BASH_ENV PROMPT_COMMAND ENV && \
+                    source scl_source enable go-toolset-7 && \
+                    go get -d github.com/muff1nman/node-egress-operator/pkg/stub && \
+                    cd \$HOME/go/src/tmp/github.com/muff1nman/node-egress-operator/build/build.sh
+                    """
             }
         }
         stage('Apply OpenShift Build Objects') {
@@ -25,7 +31,7 @@ pipeline {
             steps {
                 script {
                     openshift.withCluster() {
-                        openshift.selector('bc', 'node-egress-operator').startBuild('--from-dir=.', '--wait')
+                        openshift.selector('bc', 'node-egress-operator').startBuild('--from-dir=$HOME/go/src/tmp/github.com/muff1nman/node-egress-operator/', '--wait')
                     }
                 }
             }
