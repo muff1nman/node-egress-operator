@@ -12,7 +12,8 @@ pipeline {
                     unset BASH_ENV PROMPT_COMMAND ENV && \
                     . /opt/rh/go-toolset-7/enable && \
                     go get -d github.com/muff1nman/node-egress-operator/pkg/stub && \
-                    cd \$HOME/go/src/github.com/muff1nman/node-egress-operator/tmp/build/build.sh
+                    cd \$HOME/go/src/github.com/muff1nman/node-egress-operator && \
+                    tmp/build/build.sh
                     """
             }
         }
