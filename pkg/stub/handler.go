@@ -21,8 +21,11 @@ type Handler struct {
 }
 
 func (h *Handler) Handle(ctx context.Context, event sdk.Event) error {
-	switch event.Object.(type) {
+	switch o := event.Object.(type) {
 	case *corev1.Node:
+		logrus.WithFields(logrus.Fields{
+			"nodeEventSource": o.Name,
+		}).Info("=========== Running Iteration ==========")
 		// TODO this
 		// algo
 		// listOfEgress: pullFromConfig (update this config
@@ -34,8 +37,6 @@ func (h *Handler) Handle(ctx context.Context, event sdk.Event) error {
 		// egressToRemove: curOnlineEgress - listOfEgress
 
 		listOfEgress := getListOfEgress()
-
-		logrus.Info("Got egress list : %v", listOfEgress)
 
 		curNodes, err := getCurrentNodes()
 		if err != nil {
@@ -51,27 +52,40 @@ func (h *Handler) Handle(ctx context.Context, event sdk.Event) error {
 
 		curOnlineNodeNames := FilterAndMapNodes(curNodes, IsNodeOnline)
 		curEgressNodeNames := FilterAndMapNets(curHostSubnets, HasEgress)
-		curOnlineEgress := FilterAndMapIntoSet(curHostSubnets, curOnlineNodeNames)
+		curOnlineEgress := FilterAndMapEgress(curHostSubnets, curOnlineNodeNames)
+		egressToAdd := SetDifference(listOfEgress, curOnlineEgress)
+		egressToRemove := SetDifference(curOnlineEgress, listOfEgress)
 
+		for _, egress := range listOfEgress {
+			logrus.WithFields(logrus.Fields{
+				"egress": egress,
+			}).Info("Got desired egress")
+		}
 		for _, node := range curOnlineNodeNames {
 			logrus.WithFields(logrus.Fields{
 				"name": node,
-			}).Info("Got onlines node")
+			}).Info("Got online node")
 		}
 		for _, node := range curEgressNodeNames {
 			logrus.WithFields(logrus.Fields{
 				"name": node,
 			}).Info("Got current egress node")
 		}
-		for egress, _ := range curOnlineEgress {
+		for _, egress := range curOnlineEgress {
 			logrus.WithFields(logrus.Fields{
 				"egress": egress,
 			}).Info("Got online egress")
 		}
-
-		//curEgNodes, err := getCurrentEgressNodes()
-
-		//curOnlineEgress, err := getEgress(curOnlineNodes)
+		for _, egress := range egressToAdd {
+			logrus.WithFields(logrus.Fields{
+				"egress": egress,
+			}).Info("Need to add egress")
+		}
+		for _, egress := range egressToRemove {
+			logrus.WithFields(logrus.Fields{
+				"egress": egress,
+			}).Info("Need to remove egress")
+		}
 
 	}
 	return nil
@@ -79,7 +93,11 @@ func (h *Handler) Handle(ctx context.Context, event sdk.Event) error {
 
 func getListOfEgress() []string {
 	rawenv := os.Getenv("EGRESS_LIST")
-	return strings.Split(rawenv, ",")
+	if len(rawenv) > 0 {
+		return strings.Split(rawenv, ",")
+	} else {
+		return nil
+	}
 }
 
 func getCurrentNodes() ([]corev1.Node, error) {
@@ -146,12 +164,12 @@ func FilterAndMapNets(vs []ocpv1.HostSubnet, filter netfilter) []string {
 	return vsf
 }
 
-func FilterAndMapIntoSet(subs []ocpv1.HostSubnet, filterNodeNames []string) map[string]struct{} {
-	m := make(map[string]struct{})
+func FilterAndMapEgress(subs []ocpv1.HostSubnet, filterNodeNames []string) []string {
+	m := make([]string, 0)
 	for _, sub := range subs {
 		if Contains(filterNodeNames, sub.Name) {
 			for _, egress := range sub.EgressIPs {
-				m[egress] = struct{}{}
+				m = append(m, egress)
 			}
 		}
 	}
@@ -165,4 +183,18 @@ func Contains(a []string, x string) bool {
 		}
 	}
 	return false
+}
+
+func SetDifference(a []string, b []string) []string {
+	mb := map[string]bool{}
+	for _, x := range b {
+		mb[x] = true
+	}
+	ab := []string{}
+	for _, x := range a {
+		if _, ok := mb[x]; !ok {
+			ab = append(ab, x)
+		}
+	}
+	return ab
 }
