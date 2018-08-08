@@ -5,7 +5,9 @@ import (
 	"runtime"
 
 	stub "github.com/muff1nman/node-egress-operator/pkg/stub"
+	network "github.com/openshift/api/network/v1"
 	sdk "github.com/operator-framework/operator-sdk/pkg/sdk"
+	k8sutil "github.com/operator-framework/operator-sdk/pkg/util/k8sutil"
 	sdkVersion "github.com/operator-framework/operator-sdk/version"
 
 	"github.com/sirupsen/logrus"
@@ -23,6 +25,8 @@ func main() {
 	printVersion()
 
 	sdk.ExposeMetricsPort()
+
+	k8sutil.AddToSDKScheme(network.AddToScheme)
 
 	resource := "v1"
 	kind := "Node"

@@ -100,7 +100,7 @@ func getCurrentHostSubnets() ([]ocpv1.HostSubnet, error) {
 	netList := &ocpv1.HostSubnetList{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "HostSubnet",
-			APIVersion: "v1",
+			APIVersion: "network.openshift.io/v1",
 		},
 	}
 	err := sdk.List("", netList)
