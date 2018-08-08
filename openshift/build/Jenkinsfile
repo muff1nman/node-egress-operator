@@ -1,0 +1,35 @@
+pipeline {
+    agent {
+        node {
+            label 'go'
+        }
+    }
+    stages {
+        stage('Build go binary') {
+            steps {
+                sh "tmp/build/build.sh"
+            }
+        }
+        stage('Apply OpenShift Build Objects') {
+            steps {
+                script {
+                    openshift.withCluster() {
+                        dir('openshift/build') {
+                            openshift.apply(readFile('build.yml'))
+                        }
+                    }
+                }
+            }
+        }
+        stage('Build') {
+            steps {
+                script {
+                    openshift.withCluster() {
+                        openshift.selector('bc', 'node-egress-operator').startBuild('--from-dir=.', '--wait')
+                    }
+                }
+            }
+        }
+    }
+}
+// vim: ts=4:sw=4:expandtab
