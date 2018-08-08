@@ -36,7 +36,7 @@ items:
       type: Binary
     strategy:
       dockerStrategy:
-        dockerFilePath: "tmp/build/Dockerfile"
+        dockerfilePath: "tmp/build/Dockerfile"
       type: Docker
     triggers:
     - github:
