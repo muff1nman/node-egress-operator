@@ -50,8 +50,9 @@ func (h *Handler) Handle(ctx context.Context, event sdk.Event) error {
 			}).Info("Got onlines node")
 		}
 
-		curEgNodes, err := getCurrentEgressNodes()
+		//curEgNodes, err := getCurrentEgressNodes()
 
+/*
 		if err != nil {
 			logrus.Errorf("Failed to get current egress nodes : %v", err)
 			return err
@@ -63,6 +64,7 @@ func (h *Handler) Handle(ctx context.Context, event sdk.Event) error {
 				"index": index,
 			}).Info("Got current egress node")
 		}
+*/
 	}
 	return nil
 }
