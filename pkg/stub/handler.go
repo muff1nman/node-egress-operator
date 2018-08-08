@@ -3,6 +3,7 @@ package stub
 import (
 	"context"
 
+	"fmt"
 	ocpv1 "github.com/openshift/api/network/v1"
 	"github.com/operator-framework/operator-sdk/pkg/sdk"
 	"github.com/sirupsen/logrus"
@@ -27,6 +28,7 @@ func (h *Handler) Handle(ctx context.Context, event sdk.Event) error {
 			"nodeEventSource": o.Name,
 		}).Info("=========== Running Iteration ==========")
 		// TODO this
+		// dont touch non labeled nodes even if they have hostsubnets
 		// algo
 		// listOfEgress: pullFromConfig (update this config
 		// curOnlineNodes: get online nodes with the correct label
@@ -60,27 +62,27 @@ func (h *Handler) Handle(ctx context.Context, event sdk.Event) error {
 		for _, egress := range listOfEgress {
 			logrus.WithFields(logrus.Fields{
 				"egress": egress,
-			}).Info("Got desired egress")
+			}).Debug("Got desired egress")
 		}
 		for _, node := range curOnlineNodeNames {
 			logrus.WithFields(logrus.Fields{
 				"name": node,
-			}).Info("Got online node")
+			}).Debug("Got online node")
+		}
+		for _, node := range curEgressNodeNames {
+			logrus.WithFields(logrus.Fields{
+				"name": node,
+			}).Debug("Got current egress node")
+		}
+		for _, egress := range curOnlineEgress {
+			logrus.WithFields(logrus.Fields{
+				"egress": egress,
+			}).Debug("Got online egress")
 		}
 		for _, node := range nodeNamesToClear {
 			logrus.WithFields(logrus.Fields{
 				"name": node,
 			}).Info("Need to clear egress from offline node")
-		}
-		for _, node := range curEgressNodeNames {
-			logrus.WithFields(logrus.Fields{
-				"name": node,
-			}).Info("Got current egress node")
-		}
-		for _, egress := range curOnlineEgress {
-			logrus.WithFields(logrus.Fields{
-				"egress": egress,
-			}).Info("Got online egress")
 		}
 		for _, egress := range egressToAdd {
 			logrus.WithFields(logrus.Fields{
@@ -93,6 +95,52 @@ func (h *Handler) Handle(ctx context.Context, event sdk.Event) error {
 			}).Info("Need to remove egress")
 		}
 
+		modifiedHostSubnetNames := map[string]bool{}
+
+		for _, hostSubnet := range curHostSubnets {
+			if Contains(nodeNamesToClear, hostSubnet.Name) {
+				hostSubnet.EgressIPs = make([]string, 0)
+				modifiedHostSubnetNames[hostSubnet.Name] = true
+			} else {
+				newEgressList := make([]string, 0)
+				for _, egress := range hostSubnet.EgressIPs {
+					if Contains(egressToRemove, egress) {
+						modifiedHostSubnetNames[hostSubnet.Name] = true
+					} else {
+						newEgressList = append(newEgressList, egress)
+					}
+				}
+				if modifiedHostSubnetNames[hostSubnet.Name] {
+					hostSubnet.EgressIPs = newEgressList
+				}
+			}
+		}
+
+		for len(egressToAdd) > 0 {
+			egressFindingAHome := egressToAdd[len(egressToAdd)-1]
+			egressToAdd = egressToAdd[:len(egressToAdd)-1]
+			var chosenHostSubnet *ocpv1.HostSubnet = nil
+			var chosenHostSubnetNumberOfEgress int = -1
+			for _, hostSubnet := range curHostSubnets {
+				if Contains(curOnlineNodeNames, hostSubnet.Name) && (chosenHostSubnetNumberOfEgress == -1 || chosenHostSubnetNumberOfEgress > len(hostSubnet.EgressIPs)) {
+					chosenHostSubnet = &hostSubnet
+					chosenHostSubnetNumberOfEgress = len(hostSubnet.EgressIPs)
+				}
+			}
+			if chosenHostSubnet != nil {
+				(*chosenHostSubnet).EgressIPs = append((*chosenHostSubnet).EgressIPs, egressFindingAHome)
+				modifiedHostSubnetNames[(*chosenHostSubnet).Name] = true
+			} else {
+				return fmt.Errorf("node-egress-operator: cannot find a home for egressIP %s", egressFindingAHome)
+			}
+		}
+
+		for _, hostSubnet := range curHostSubnets {
+			_, needsUpdate := modifiedHostSubnetNames[hostSubnet.Name]
+			if needsUpdate {
+				logrus.Info("Updating hostSubnet %s", hostSubnet.Name)
+			}
+		}
 	}
 	return nil
 }
