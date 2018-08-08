@@ -10,9 +10,9 @@ pipeline {
                 sh """
                     #!/usr/bin/env bash \n
                     unset BASH_ENV PROMPT_COMMAND ENV && \
-                    source scl_source enable go-toolset-7 && \
+                    . /opt/rh/go-toolset-7/enable && \
                     go get -d github.com/muff1nman/node-egress-operator/pkg/stub && \
-                    cd \$HOME/go/src/tmp/github.com/muff1nman/node-egress-operator/build/build.sh
+                    cd \$HOME/go/src/github.com/muff1nman/node-egress-operator/tmp/build/build.sh
                     """
             }
         }
@@ -31,7 +31,7 @@ pipeline {
             steps {
                 script {
                     openshift.withCluster() {
-                        openshift.selector('bc', 'node-egress-operator').startBuild('--from-dir=$HOME/go/src/tmp/github.com/muff1nman/node-egress-operator/', '--wait')
+                        openshift.selector('bc', 'node-egress-operator').startBuild('--from-dir=$HOME/go/src/github.com/muff1nman/node-egress-operator/', '--wait')
                     }
                 }
             }
