@@ -55,6 +55,7 @@ func (h *Handler) Handle(ctx context.Context, event sdk.Event) error {
 		curOnlineEgress := FilterAndMapEgress(curHostSubnets, curOnlineNodeNames)
 		egressToAdd := SetDifference(listOfEgress, curOnlineEgress)
 		egressToRemove := SetDifference(curOnlineEgress, listOfEgress)
+		nodeNamesToClear := SetDifference(curEgressNodeNames, curOnlineNodeNames)
 
 		for _, egress := range listOfEgress {
 			logrus.WithFields(logrus.Fields{
@@ -65,6 +66,11 @@ func (h *Handler) Handle(ctx context.Context, event sdk.Event) error {
 			logrus.WithFields(logrus.Fields{
 				"name": node,
 			}).Info("Got online node")
+		}
+		for _, node := range nodeNamesToClear {
+			logrus.WithFields(logrus.Fields{
+				"name": node,
+			}).Info("Need to clear egress from offline node")
 		}
 		for _, node := range curEgressNodeNames {
 			logrus.WithFields(logrus.Fields{
