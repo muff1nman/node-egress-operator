@@ -37,32 +37,41 @@ func (h *Handler) Handle(ctx context.Context, event sdk.Event) error {
 
 		logrus.Info("Got egress list : %v", listOfEgress)
 
-		curOnlineNodes, err := getCurrentOnlineNodes()
+		curNodes, err := getCurrentNodes()
 		if err != nil {
-			logrus.Errorf("Failed to get current online nodes : %v", err)
+			logrus.Errorf("Failed to get current nodes : %v", err)
 			return err
 		}
 
-		for index, node := range curOnlineNodes {
+		curHostSubnets, err := getCurrentHostSubnets()
+		if err != nil {
+			logrus.Errorf("Failed to get current egress : %v", err)
+			return err
+		}
+
+		curOnlineNodeNames := FilterAndMapNodes(curNodes, IsNodeOnline)
+		curEgressNodeNames := FilterAndMapNets(curHostSubnets, HasEgress)
+		curOnlineEgress := FilterAndMapIntoSet(curHostSubnets, curOnlineNodeNames)
+
+		for _, node := range curOnlineNodeNames {
 			logrus.WithFields(logrus.Fields{
-				"name":  node,
-				"index": index,
+				"name": node,
 			}).Info("Got onlines node")
 		}
-
-		curEgNodes, err := getCurrentEgressNodes()
-
-		if err != nil {
-			logrus.Errorf("Failed to get current egress nodes : %v", err)
-			return err
-		}
-
-		for index, node := range curEgNodes {
+		for _, node := range curEgressNodeNames {
 			logrus.WithFields(logrus.Fields{
-				"name":  node,
-				"index": index,
+				"name": node,
 			}).Info("Got current egress node")
 		}
+		for egress, _ := range curOnlineEgress {
+			logrus.WithFields(logrus.Fields{
+				"egress": egress,
+			}).Info("Got online egress")
+		}
+
+		//curEgNodes, err := getCurrentEgressNodes()
+
+		//curOnlineEgress, err := getEgress(curOnlineNodes)
 
 	}
 	return nil
@@ -73,7 +82,7 @@ func getListOfEgress() []string {
 	return strings.Split(rawenv, ",")
 }
 
-func getCurrentOnlineNodes() ([]string, error) {
+func getCurrentNodes() ([]corev1.Node, error) {
 	nodeList := &corev1.NodeList{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Node",
@@ -84,10 +93,10 @@ func getCurrentOnlineNodes() ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	return FilterAndMapNodes(nodeList.Items, IsNodeOnline), nil
+	return nodeList.Items, nil
 }
 
-func getCurrentEgressNodes() ([]string, error) {
+func getCurrentHostSubnets() ([]ocpv1.HostSubnet, error) {
 	netList := &ocpv1.HostSubnetList{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "HostSubnet",
@@ -98,7 +107,7 @@ func getCurrentEgressNodes() ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	return FilterAndMapNets(netList.Items, HasEgress), nil
+	return netList.Items, nil
 }
 
 type nodefilter func(corev1.Node) bool
@@ -135,4 +144,25 @@ func FilterAndMapNets(vs []ocpv1.HostSubnet, filter netfilter) []string {
 		}
 	}
 	return vsf
+}
+
+func FilterAndMapIntoSet(subs []ocpv1.HostSubnet, filterNodeNames []string) map[string]struct{} {
+	m := make(map[string]struct{})
+	for _, sub := range subs {
+		if Contains(filterNodeNames, sub.Name) {
+			for _, egress := range sub.EgressIPs {
+				m[egress] = struct{}{}
+			}
+		}
+	}
+	return m
+}
+
+func Contains(a []string, x string) bool {
+	for _, n := range a {
+		if x == n {
+			return true
+		}
+	}
+	return false
 }
