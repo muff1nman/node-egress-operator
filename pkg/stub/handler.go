@@ -139,7 +139,8 @@ func (h *Handler) Handle(ctx context.Context, event sdk.Event) error {
 					"hostSubnet": hostSubnet.Name,
 					"egressIps":  strings.Join(hostSubnet.EgressIPs, ","),
 				}).Info("Updating hostSubnet")
-				err := sdk.Update(hostSubnet)
+				hostSubnetToSend := hostSubnet.DeepCopyObject()
+				err := sdk.Update(hostSubnetToSend)
 				if err != nil {
 					logrus.Errorf("Failed to update hostsubnet", err)
 					return err
