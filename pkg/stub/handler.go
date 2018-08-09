@@ -28,16 +28,6 @@ func (h *Handler) Handle(ctx context.Context, event sdk.Event) error {
 		logrus.WithFields(logrus.Fields{
 			"nodeEventSource": o.Name,
 		}).Info("=========== Running Iteration ==========")
-		// TODO this
-		// dont touch non labeled nodes even if they have hostsubnets
-		// algo
-		// listOfEgress: pullFromConfig (update this config
-		// curOnlineNodes: get online nodes with the correct label
-		// curEgNodes: get nodes with egress
-		// nodesToClear: curEgNodes - curOnlineNodes
-		// curOnlineEgress: getEgress(curOnlineNodes)
-		// egressToAdd: listOfEgress - curOnlineEgress
-		// egressToRemove: curOnlineEgress - listOfEgress
 
 		nodeSelector, err := getNodeSelector()
 		if err != nil {
