@@ -9,6 +9,7 @@ import (
 	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"os"
 	"strings"
 )
@@ -38,9 +39,15 @@ func (h *Handler) Handle(ctx context.Context, event sdk.Event) error {
 		// egressToAdd: listOfEgress - curOnlineEgress
 		// egressToRemove: curOnlineEgress - listOfEgress
 
+		nodeSelector, err := getNodeSelector()
+		if err != nil {
+			logrus.Errorf("Failed to get node selector", err)
+			return err
+		}
+
 		listOfEgress := getListOfEgress()
 
-		curNodes, err := getCurrentNodes()
+		curNodes, err := getCurrentNodes(nodeSelector)
 		if err != nil {
 			logrus.Errorf("Failed to get current nodes : %v", err)
 			return err
@@ -145,6 +152,19 @@ func (h *Handler) Handle(ctx context.Context, event sdk.Event) error {
 	return nil
 }
 
+func getNodeSelector() (labels.Set, error) {
+	rawenv := os.Getenv("NODE_SELECTOR")
+	if len(rawenv) > 0 {
+		pieces := strings.Split(rawenv, "=")
+		if len(pieces) != 2 {
+			return nil, fmt.Errorf("node-egress-operator: NODE_SELECTOR must be of the format key=value")
+		}
+		return map[string]string{pieces[0]: pieces[1]}, nil
+	} else {
+		return nil, fmt.Errorf("node-egress-operator: NODE_SELECTOR must be set")
+	}
+}
+
 func getListOfEgress() []string {
 	rawenv := os.Getenv("EGRESS_LIST")
 	if len(rawenv) > 0 {
@@ -154,14 +174,15 @@ func getListOfEgress() []string {
 	}
 }
 
-func getCurrentNodes() ([]corev1.Node, error) {
+func getCurrentNodes(sel labels.Set) ([]corev1.Node, error) {
+	opts := &metav1.ListOptions{LabelSelector: labels.SelectorFromSet(sel).String()}
 	nodeList := &corev1.NodeList{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Node",
 			APIVersion: "v1",
 		},
 	}
-	err := sdk.List("", nodeList)
+	err := sdk.List("", nodeList, sdk.WithListOptions(opts))
 	if err != nil {
 		return nil, err
 	}
