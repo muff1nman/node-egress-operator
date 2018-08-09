@@ -137,7 +137,13 @@ func (h *Handler) Handle(ctx context.Context, event sdk.Event) error {
 			if needsUpdate {
 				logrus.WithFields(logrus.Fields{
 					"hostSubnet": hostSubnet.Name,
+					"egressIps":  strings.Join(hostSubnet.EgressIPs, ","),
 				}).Info("Updating hostSubnet")
+				err := sdk.Update(hostSubnet)
+				if err != nil {
+					logrus.Errorf("Failed to update hostsubnet", err)
+					return err
+				}
 			}
 		}
 	}
