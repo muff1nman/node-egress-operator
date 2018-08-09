@@ -27,7 +27,7 @@ func (h *Handler) Handle(ctx context.Context, event sdk.Event) error {
 	case *corev1.Node:
 		logrus.WithFields(logrus.Fields{
 			"nodeEventSource": o.Name,
-		}).Info("=========== Running Iteration ==========")
+		}).Debug("=========== Running Iteration ==========")
 
 		nodeSelector, err := getNodeSelector()
 		if err != nil {
