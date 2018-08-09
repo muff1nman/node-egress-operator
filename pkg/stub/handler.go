@@ -94,7 +94,8 @@ func (h *Handler) Handle(ctx context.Context, event sdk.Event) error {
 
 		modifiedHostSubnetNames := map[string]bool{}
 
-		for _, hostSubnet := range curHostSubnets {
+		for i, _ := range curHostSubnets {
+			hostSubnet := &curHostSubnets[i]
 			if Contains(nodeNamesToClear, hostSubnet.Name) {
 				hostSubnet.EgressIPs = make([]string, 0)
 				modifiedHostSubnetNames[hostSubnet.Name] = true
@@ -118,9 +119,9 @@ func (h *Handler) Handle(ctx context.Context, event sdk.Event) error {
 			egressToAdd = egressToAdd[:len(egressToAdd)-1]
 			var chosenHostSubnet *ocpv1.HostSubnet = nil
 			var chosenHostSubnetNumberOfEgress int = -1
-			for _, hostSubnet := range curHostSubnets {
+			for i, hostSubnet := range curHostSubnets {
 				if Contains(curOnlineNodeNames, hostSubnet.Name) && (chosenHostSubnetNumberOfEgress == -1 || chosenHostSubnetNumberOfEgress > len(hostSubnet.EgressIPs)) {
-					chosenHostSubnet = &hostSubnet
+					chosenHostSubnet = &curHostSubnets[i]
 					chosenHostSubnetNumberOfEgress = len(hostSubnet.EgressIPs)
 				}
 			}
