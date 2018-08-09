@@ -135,7 +135,9 @@ func (h *Handler) Handle(ctx context.Context, event sdk.Event) error {
 		for _, hostSubnet := range curHostSubnets {
 			_, needsUpdate := modifiedHostSubnetNames[hostSubnet.Name]
 			if needsUpdate {
-				logrus.Info("Updating hostSubnet %s", hostSubnet.Name)
+				logrus.WithFields(logrus.Fields{
+					"hostSubnet": hostSubnet.Name,
+				}).Info("Updating hostSubnet")
 			}
 		}
 	}
